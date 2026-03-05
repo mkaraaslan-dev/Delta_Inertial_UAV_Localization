@@ -21,7 +21,7 @@ This study proposes a deep learning framework that directly estimates incrementa
 ```
 ├── models.py               # Model definitions: LSTM, BiLSTM, GRU, AHLSTM
 ├── trainseqcon.py          # Training script (flight-wise protocol)
-├── data/                   # Flight trajectory CSV files (9 flights)
+├── dataset/                   # Flight trajectory CSV files (9 flights)
 └── README.md
 ```
 
