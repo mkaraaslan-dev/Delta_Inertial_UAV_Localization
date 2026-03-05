@@ -12,7 +12,7 @@ This repository contains the dataset, source code, and trained model results ass
 
 This study proposes a deep learning framework that directly estimates incremental position changes (Δx, Δy, Δz) from raw IMU sensor data during GPS outages. Four recurrent architectures — LSTM, BiLSTM, GRU, and AHLSTM — are systematically compared using a flight-wise training and evaluation protocol on nine independent UAV flight trajectories recorded in the Webots simulation environment.
 
-![System Architecture](gps_prediction-inertialtrindex1.drawio.png)
+![System Architecture](gps_prediction-inertialtrindex1.jpg)
 
 ---
 
