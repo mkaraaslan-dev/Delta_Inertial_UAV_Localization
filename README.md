@@ -104,9 +104,9 @@ results/
 If you use this code or dataset in your research, please cite:
 
 ```bibtex
-@article{delta_inertial_uav_2025,
+@article{delta_inertial_uav_2026,
   title   = {Deep Learning-Based UAV Position Estimation Using IMU Sensor Data During GPS Signal Loss},
-  year    = {2025}
+  year    = {2026}
 }
 ```
 
