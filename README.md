@@ -1,27 +1,28 @@
-# Delta Inertial UAV Localization
+# IMU-Based UAV Navigation Under GPS Loss: Cross-Flight Generalization and Noise Robustness of Recurrent Deep Learning Architectures
 
-> **Deep Learning-Based UAV Position Estimation Using IMU Sensor Data During GPS Loss**
+This repository contains the dataset, source code, and results associated with the paper:
 
-This repository contains the dataset, source code, and trained model results associated with the paper:
-
-**"Deep Learning-Based UAV Position Estimation Using IMU Sensor Data During GPS Signal Loss"**
+**"IMU-Based UAV Navigation Under GPS Loss: Cross-Flight Generalization and Noise Robustness of Recurrent Deep Learning Architectures"**
 
 ---
 
 ## Overview
 
-This study proposes a deep learning framework that directly estimates incremental position changes (Δx, Δy, Δz) from raw IMU sensor data during GPS outages. Four recurrent architectures — LSTM, BiLSTM, GRU, and AHLSTM — are systematically compared using a flight-wise training and evaluation protocol on nine independent UAV flight trajectories recorded in the Webots simulation environment.
+This study evaluates four recurrent deep learning architectures for continuous UAV position estimation during GPS loss using raw IMU sensor data. Incremental position changes (Δx, Δy, Δz) are directly estimated at each time step and cumulatively summed from the last known GPS position to obtain instantaneous position. Models are evaluated under a Leave-One-Out (LOO) cross-flight protocol across four noise conditions: baseline, low, medium, and high synthetic IMU noise.
 
-![System Architecture](gps_prediction-inertialtrindex1.jpg)
+![System Architecture](gps_prediction-inertialtrindex1.drawio.png)
 
 ---
 
 ## Repository Structure
 
 ```
-├── models.py               # Model definitions: LSTM, BiLSTM, GRU, AHLSTM
-├── trainseqcon.py          # Training script (flight-wise protocol)
-├── dataset/                   # Flight trajectory CSV files (9 flights)
+├── models.py                  # Model definitions: LSTM, BiLSTM, GRU, AHLSTM
+├── train_loo_full.py          # Main training script (LOO protocol, all noise levels)
+├── loo_plots.py               # Visualization module (per-condition and combined plots)
+├── noise_augmentation.py      # Synthetic IMU noise injection module
+├── inference_analysis.py      # Inference time, FPS, and VRAM analysis
+├── data/                      # Flight trajectory CSV files (9 flights)
 └── README.md
 ```
 
@@ -49,11 +50,15 @@ All models share the same configuration:
 
 ## Training Protocol
 
-Each flight is treated as an independent experimental unit:
-- **First 80%** of each flight → training
-- **Last 20%** of each flight → test (GPS loss simulation)
+A Leave-One-Out (LOO) cross-flight protocol is used. At each fold, one flight is held out entirely as the test flight while the remaining eight flights form the training pool. This directly tests inter-flight generalization under real GPS-loss deployment conditions.
 
-The scaler is fit only on the training portion of each flight to prevent data leakage.
+- **Train**: 8 complete flights (all rows)
+- **Test**: 1 unseen flight (full trajectory, prediction from origin)
+- **Folds**: 9 (one per flight)
+- **Noise levels**: Baseline, Low, Medium, High
+- **Total training sessions**: 9 folds × 4 models × 4 noise levels = 144
+
+The scaler is fit only on the 8-flight training pool to prevent data leakage.
 
 ---
 
@@ -65,37 +70,72 @@ The scaler is fit only on the training portion of each flight to prevent data le
 pip install torch scikit-learn pandas numpy matplotlib openpyxl
 ```
 
-### Running the Training
+### Running the Full Training (All Noise Levels)
 
-```python
-python trainseqcon.py
+```bash
+python train_loo_full.py
 ```
 
-The script will:
-1. Load all flight CSV files from the `data/` directory
-2. Train each model independently on each flight (9 flights × 4 models = 36 sessions)
-3. Save model weights, loss curves, trajectory plots, and metrics under `results/`
+The script will automatically run all four noise conditions sequentially and generate all outputs:
 
-Upon successful execution, the following output structure will be generated:
+1. Load all 9 flight CSV files from `data/`
+2. Run LOO training for each noise level: baseline → low → medium → high
+3. Save per-fold model weights, loss curves, and metrics
+4. Generate per-condition plots (loss curves, fold RMSE bar charts)
+5. Generate combined comparison plots (noise vs RMSE line plots, boxplots, heatmap, speed vs accuracy)
+6. Save all statistical summaries as Excel files
 
-```
-results/
-  flight_01/ ... flight_09/
-    LSTMModel / BiLSTMModel / GRUModel / AHLSTMModel
-      *_model.pth
-      *_losses.csv
-      *_loss_curve.png
-      *_scenario_2d.png
-      *_scenario_3d.png
-      *_scenario_axes.png
-      *_results.xlsx
-  summary/
-    all_results.xlsx
-    statistics.xlsx
-    comparison_plots/
+### Running Inference Analysis
+
+```bash
+python inference_analysis.py
 ```
 
-> **Note:** The `results/` directory is not included in this repository due to file size. Run the training script to reproduce all outputs locally.
+Measures latency (ms/step), throughput (fps), and peak VRAM for each model on CUDA.
+
+---
+
+## Output Structure
+
+```
+results_loo/
+  baseline/   low/   medium/   high/
+    fold_01/ ... fold_09/
+      LSTMModel / BiLSTMModel / GRUModel / AHLSTMModel
+        *_model.pth
+        *_scaler_X.pkl, *_scaler_y.pkl
+        *_losses.csv
+        *_results.xlsx
+    summary/
+      all_results.xlsx
+      statistics.xlsx
+      per_condition_table.xlsx
+      plots/
+        loss_curves_{level}.png
+        fold_rmse_{level}.png
+  combined/
+    combined_noise_vs_pos_rmse.png
+    combined_noise_vs_delta_rmse.png
+    combined_boxplot_pos_rmse.png
+    combined_heatmap_extended.png
+    speed_vs_accuracy.png
+    combined_table.xlsx
+
+inference_results/
+  inference_summary.xlsx
+  bench_result_latency.png
+  bench_result_throughput.png
+  bench_result_vram.png
+
+> **Note:** The `results_loo/` directory is not included in this repository due to file size.
+> Run `train_loo_full.py` to reproduce all outputs locally.
+```
+
+---
+
+## Key Results
+
+Under the LOO baseline protocol, GRU achieves the lowest average position RMSE at **0.5849 m** with the most consistent cross-flight generalization. Under high noise, GRU's position RMSE increases by **41.29%** compared to **93.28%** for AHLSTM. All models satisfy the 10 Hz real-time requirement, with GRU achieving **1552.8 fps** at **0.644 ms/step**.
 
 ---
 
@@ -104,9 +144,11 @@ results/
 If you use this code or dataset in your research, please cite:
 
 ```bibtex
-@article{delta_inertial_uav_2026,
-  title   = {Deep Learning-Based UAV Position Estimation Using IMU Sensor Data During GPS Signal Loss},
-  year    = {2026}
+@article{karaaslan2025imu,
+  title   = {IMU-Based UAV Navigation Under GPS Loss: Cross-Flight Generalization
+             and Noise Robustness of Recurrent Deep Learning Architectures},
+  author  = {Karaaslan, Mahmut and Kaya, Ersin},
+  year    = {2025}
 }
 ```
 
